@@ -30,6 +30,9 @@
   --pos: #49d68f;
   --lime: #d5f43e;
   --warn: #e0703a;
+  --exp: #e5484d;
+  --inc: #2fb36d;
+  --ease: cubic-bezier(.3,.8,.2,1);
   --font: 'Google Sans Flex', 'Golos Text', system-ui, -apple-system, sans-serif;
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -62,9 +65,25 @@ input:focus { border-color: var(--dim); }
 @keyframes pulse { 50% { opacity: .3; } }
 
 /* scope switch */
-.seg { display: flex; background: var(--s1); border-radius: 99px; padding: 4px; gap: 2px; margin-bottom: 14px; }
-.seg button { flex: 1; height: 38px; border-radius: 99px; color: var(--mu); font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; }
-.seg button.on { background: var(--s3); color: var(--tx); }
+.seg { position: relative; display: flex; background: var(--s1); border-radius: 99px; padding: 4px; margin-bottom: 14px; }
+.seg .ind { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--n)); border-radius: 99px; background: var(--s3);
+  transform: translateX(calc(var(--i) * 100%)); transition: transform .34s var(--ease), background-color .34s var(--ease); }
+.seg button { position: relative; z-index: 1; flex: 1; height: 38px; border-radius: 99px; color: var(--mu); font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; transition: color .25s; }
+.seg button.on { color: var(--tx); }
+.seg.tinted button.on { color: #fff; }
+
+/* нажатия и переходы */
+button { transition: transform .16s var(--ease), background-color .22s, color .22s, opacity .2s; }
+button:active:not(:disabled) { transform: scale(.95); }
+.row:active, .srow > button.grow:active { transform: none; background: var(--s2); }
+.view.enter { animation: enter .3s var(--ease); }
+.fade { animation: fade .25s var(--ease); }
+@keyframes enter { from { opacity: 0; transform: translateY(10px); } }
+@keyframes fade { from { opacity: 0; } }
+.collapse { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .3s var(--ease), opacity .25s; }
+.collapse.closed { grid-template-rows: 0fr; opacity: 0; }
+.collapse > div { overflow: hidden; min-height: 0; }
+.collapse.closed button { visibility: hidden; }
 
 /* cards */
 .cards { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: row dense; gap: 10px; margin-bottom: 26px; }
@@ -75,12 +94,12 @@ input:focus { border-color: var(--dim); }
 .card.hero .big { font-size: 54px; letter-spacing: -0.04em; margin-top: 10px; }
 .card .sub { font-size: 13px; color: var(--mu); margin-top: 6px; }
 .dots { display: grid; grid-template-columns: repeat(30, 1fr); gap: 4px; margin-top: 18px; }
-.dots i { aspect-ratio: 1; border-radius: 50%; background: var(--s3); }
+.dots i { aspect-ratio: 1; border-radius: 50%; background: var(--s3); transition: background-color .25s; transition-delay: calc(var(--d, 0) * 14ms); }
 .dots i.on { background: var(--lime); }
 .dots.over i.on { background: var(--warn); }
 .bars { display: flex; align-items: flex-end; gap: 5px; height: 38px; margin-top: 12px; }
 .bars span { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%; }
-.bars b { width: 100%; border-radius: 4px; background: var(--s3); min-height: 4px; }
+.bars b { width: 100%; border-radius: 4px; background: var(--s3); min-height: 4px; transition: height .45s var(--ease); }
 .bars span.today b { background: var(--lime); }
 .bars em { font-style: normal; font-size: 10px; color: var(--dim); line-height: 1; }
 .split { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; }
@@ -117,7 +136,7 @@ input:focus { border-color: var(--dim); }
 .sheet-in { max-width: 520px; margin: 0 auto; }
 .grab { width: 40px; height: 5px; border-radius: 99px; background: var(--s3); margin: 0 auto 14px; }
 .sh-title { font-size: 20px; font-weight: 600; margin: 0 0 14px; }
-@media (prefers-reduced-motion: reduce) { .sheet, .scrim { transition: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::after { transition: none !important; animation: none !important; } }
 
 /* amount editor (image 3) */
 .panel { background: var(--s1); border-radius: 26px; padding: 14px; margin-bottom: 10px; }
@@ -139,8 +158,9 @@ input:focus { border-color: var(--dim); }
 .field + .field { margin-top: 8px; }
 .field label { color: var(--mu); font-size: 14px; flex: none; }
 .field input { max-width: 64%; }
-.toggle { width: 50px; height: 30px; border-radius: 99px; background: var(--s3); position: relative; flex: none; transition: background .15s; }
-.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--mu); transition: transform .15s, background .15s; }
+.toggle { width: 50px; height: 30px; border-radius: 99px; background: var(--s3); position: relative; flex: none; transition: background-color .25s; }
+.toggle:active:not(:disabled) { transform: none; }
+.toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--mu); transition: transform .3s var(--ease), background-color .25s; }
 .toggle.on { background: var(--pos); }
 .toggle.on::after { transform: translateX(20px); background: #fff; }
 .primary { width: 100%; height: 58px; border-radius: 99px; background: var(--tx); color: #000; font-size: 17px; font-weight: 600; margin-top: 6px; }
@@ -236,6 +256,98 @@ function dayTitle(s) {
   const opts = { day: 'numeric', month: 'long' };
   if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
   return d.toLocaleDateString('ru-RU', opts);
+}
+
+// ---------- motion & haptics ----------
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const segPos = {}, numPrev = {}, animPrev = {};
+
+// Виброотклик: Android — Vibration API; iPhone (iOS 18+) — системный отклик переключателя
+const haptic = (() => {
+  const P = { tick: 4, light: 8, success: [10, 60, 14], error: [16, 50, 16, 50, 16] };
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let label = null;
+  const iosTap = () => {
+    if (!label) {
+      const inp = document.createElement('input');
+      inp.type = 'checkbox'; inp.id = 'hx-switch'; inp.setAttribute('switch', '');
+      label = document.createElement('label'); label.htmlFor = 'hx-switch';
+      for (const el of [inp, label]) { el.style.cssText = 'position:fixed;left:-200px;top:0;opacity:0;pointer-events:none'; el.setAttribute('aria-hidden', 'true'); el.tabIndex = -1; }
+      document.body.append(inp, label);
+    }
+    label.click();
+  };
+  return kind => {
+    if (layout.haptics === false) return;
+    kind = kind || 'light';
+    try {
+      if (navigator.vibrate) { navigator.vibrate(P[kind]); return; }
+      if (isIOS) { iosTap(); if (kind === 'success' || kind === 'error') setTimeout(iosTap, 110); }
+    } catch (e) {}
+  };
+})();
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button');
+  if (b && !b.disabled && !b.closest('[data-nohx]')) haptic('light');
+}, true);
+
+// Сегментный переключатель с «плавающей» подложкой
+function segHTML(key, attr, items, cur, tones, tinted) {
+  const i = Math.max(0, items.findIndex(x => x[0] === cur));
+  const from = segPos[key] == null ? i : segPos[key];
+  segPos[key] = i;
+  const bg = tones ? tones[from] : '';
+  return `<div class="seg${tinted && tones ? ' tinted' : ''}" data-seg="${key}" data-i="${i}" data-from="${from}" ${tones ? `data-tones="${tones.join('|')}"` : ''} style="--n:${items.length};--i:${from}">
+    <span class="ind" style="${bg ? 'background:' + bg : ''}"></span>
+    ${items.map(([v, l], j) => `<button class="${j === from ? 'on' : ''}" ${attr} data-v="${esc(v)}">${esc(l)}</button>`).join('')}</div>`;
+}
+function moveSeg(seg, v) {
+  if (!seg) return;
+  const btns = [...seg.querySelectorAll('button')];
+  const i = Math.max(0, btns.findIndex(b => b.dataset.v === v));
+  seg.style.setProperty('--i', i);
+  btns.forEach((b, j) => b.classList.toggle('on', j === i));
+  const tones = seg.dataset.tones ? seg.dataset.tones.split('|') : null;
+  if (tones) seg.querySelector('.ind').style.background = tones[i];
+  segPos[seg.dataset.seg] = i;
+}
+
+// После перерисовки доводим элементы от прежнего состояния к новому — отсюда плавность
+function settle(root) {
+  root.querySelectorAll('.seg[data-from]').forEach(s => {
+    const from = s.dataset.from, to = s.dataset.i;
+    s.removeAttribute('data-from');
+    if (from === to) return;
+    void s.offsetWidth;
+    const b = s.querySelectorAll('button')[to];
+    if (b) moveSeg(s, b.dataset.v);
+  });
+  root.querySelectorAll('.dots[data-on]').forEach(d => {
+    const to = Number(d.dataset.on), dots = [...d.children];
+    const from = dots.filter(x => x.classList.contains('on')).length;
+    animPrev.dots = to;
+    if (from === to) return;
+    void d.offsetWidth;
+    dots.forEach((x, i) => { x.style.setProperty('--d', to > from ? i - from : from - 1 - i); x.classList.toggle('on', i < to); });
+  });
+  root.querySelectorAll('.bars b[data-h]').forEach(b => { void b.offsetWidth; b.style.height = b.dataset.h + 'px'; });
+  const bars = root.querySelectorAll('.bars b[data-h]');
+  if (bars.length) animPrev.bars = [...bars].map(b => Number(b.dataset.h));
+  root.querySelectorAll('[data-num]').forEach(el => {
+    const k = el.dataset.num, to = Number(el.dataset.val), fmt = el.dataset.fmt || '';
+    const from = numPrev[k]; numPrev[k] = to;
+    if (from === undefined || from === to || reduced) return;
+    const f = v => fmt === 'plus' ? money(v, true) : fmt === 'neg' ? money(-v) : money(v);
+    const t0 = performance.now(), D = 450;
+    const step = now => {
+      if (!el.isConnected) return;
+      const p = Math.min(1, (now - t0) / D), q = 1 - Math.pow(1 - p, 3);
+      el.textContent = p < 1 ? f(Math.round((from + (to - from) * q) / 100) * 100) : f(to);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    el.textContent = f(from);
+    requestAnimationFrame(step);
+  });
 }
 
 // ---------- data ----------
@@ -367,7 +479,9 @@ function render() {
   if (ui.tab === 'home') body = homeHTML();
   else if (ui.tab === 'regular') body = regularHTML();
   else body = settingsHTML();
-  app.innerHTML = headerHTML() + body + barHTML();
+  app.innerHTML = headerHTML() + `<div class="view${ui.enter ? ' enter' : ''}">${body}</div>` + barHTML();
+  ui.enter = false;
+  settle(app);
   renderSync();
 }
 
@@ -400,11 +514,12 @@ function barHTML() {
 
 function homeHTML() {
   const views = [['mine', 'Моё'], ['shared', 'Общее'], ['partner', partner().name], ['all', 'Всё']];
-  const seg = `<div class="seg">${views.map(([k, l]) => `<button class="${ui.view === k ? 'on' : ''}" data-act="view" data-v="${k}">${esc(l)}</button>`).join('')}</div>`;
+  const seg = segHTML('view', 'data-act="view"', views, ui.view);
   const list = allEntries().filter(e => inView(e, ui.view));
   const t = totals(list);
   const cards = layout.order.filter(c => !layout.hidden.includes(c)).map(c => cardHTML(c, t)).join('');
-  return seg + (cards ? `<div class="cards">${cards}</div>` : '') + listHTML(list);
+  const fade = ui.listFade ? ' fade' : ''; ui.listFade = false;
+  return seg + (cards ? `<div class="cards">${cards}</div>` : '') + `<div class="${fade}">${listHTML(list)}</div>`;
 }
 
 function cardHTML(kind, t) {
@@ -412,24 +527,27 @@ function cardHTML(kind, t) {
     const rem = t.inc - t.exp;
     const ratio = t.inc > 0 ? t.exp / t.inc : (t.exp > 0 ? 1 : 0);
     const on = Math.min(60, Math.round(ratio * 60));
-    const dots = Array.from({ length: 60 }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('');
+    const was = animPrev.dots == null ? on : animPrev.dots;
+    const dots = Array.from({ length: 60 }, (_, i) => `<i class="${i < was ? 'on' : ''}"></i>`).join('');
     const note = t.inc > 0 ? `Потрачено ${Math.round(ratio * 100)}% дохода` : (t.exp > 0 ? 'Доходов в этом месяце пока нет' : 'Записей в этом месяце пока нет');
     return `<div class="card full hero"><div class="lbl">Остаток в ${MONTHS_IN[new Date().getMonth()]}</div>
-      <div class="big num">${money(rem)}</div><div class="dots ${rem < 0 ? 'over' : ''}">${dots}</div><div class="sub">${note}</div></div>`;
+      <div class="big num" data-num="rem" data-val="${rem}">${money(rem)}</div><div class="dots ${rem < 0 ? 'over' : ''}" data-on="${on}">${dots}</div><div class="sub">${note}</div></div>`;
   }
   if (kind === 'today') {
-    return `<div class="card"><div class="lbl">Сегодня</div><div class="big num">${money(t.today)}</div>
+    return `<div class="card"><div class="lbl">Сегодня</div><div class="big num" data-num="today" data-val="${t.today}">${money(t.today)}</div>
       <div class="sub">${t.todayN ? t.todayN + ' ' + plural(t.todayN, ['трата', 'траты', 'трат']) : 'Трат нет'}</div></div>`;
   }
   if (kind === 'week') {
     const max = Math.max(...t.days, 1), td = dow(today());
-    const bars = t.days.map((v, i) => `<span class="${i === td ? 'today' : ''}"><b style="height:${i > td ? 0 : Math.max(4, Math.round(v / max * 26))}px"></b><em>${DOW[i]}</em></span>`).join('');
-    return `<div class="card"><div class="lbl">С понедельника</div><div class="big num">${money(t.week)}</div><div class="bars">${bars}</div></div>`;
+    const hs = t.days.map((v, i) => i > td ? 4 : Math.max(4, Math.round(v / max * 26)));
+    const was = animPrev.bars || hs;
+    const bars = hs.map((h, i) => `<span class="${i === td ? 'today' : ''}"><b data-h="${h}" style="height:${was[i]}px"></b><em>${DOW[i]}</em></span>`).join('');
+    return `<div class="card"><div class="lbl">С понедельника</div><div class="big num" data-num="week" data-val="${t.week}">${money(t.week)}</div><div class="bars">${bars}</div></div>`;
   }
   if (kind === 'month') {
     return `<div class="card full"><div class="lbl">За месяц</div>
-      <div class="split"><span class="mu">Доходы</span><span class="v num pos">${money(t.inc, true)}</span></div>
-      <div class="split"><span class="mu">Расходы</span><span class="v num">${money(-t.exp)}</span></div></div>`;
+      <div class="split"><span class="mu">Доходы</span><span class="v num pos" data-num="inc" data-fmt="plus" data-val="${t.inc}">${money(t.inc, true)}</span></div>
+      <div class="split"><span class="mu">Расходы</span><span class="v num" data-num="exp" data-fmt="neg" data-val="${t.exp}">${money(-t.exp)}</span></div></div>`;
   }
   return '';
 }
@@ -479,6 +597,7 @@ function openEditor(entry, preset) {
     date: today(), note: '', hidden: false, deleted: false, regular_id: '',
   }, preset || {});
   ed = { e: base, prev: entry ? Object.assign({}, entry) : null, allCats: false, newCat: false };
+  segPos.etype = null; segPos.escope = null;
   openSheet(editorHTML());
   bindEditor();
 }
@@ -492,7 +611,7 @@ function topCats(type) {
   return names;
 }
 
-function editorHTML() {
+function catPanelHTML() {
   const e = ed.e;
   const names = topCats(e.type);
   let shown = ed.allCats ? names : names.slice(0, 6);
@@ -504,9 +623,13 @@ function editorHTML() {
   const newCat = ed.newCat ? `<div style="margin-top:10px"><input id="newCat" list="catSugg" placeholder="Название категории" enterkeyhint="done" autocomplete="off">
     <datalist id="catSugg">${sugg.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     ${sugg.length ? `<div class="chips" style="margin-top:8px">${sugg.slice(0, 5).map(n => `<button class="chip ghost" data-ed="sugg" data-v="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}</div>` : '';
+  return `<div class="chips">${chips}</div>${newCat}`;
+}
 
+function editorHTML() {
+  const e = ed.e;
   return `<div class="grab"></div>
-    <div class="seg"><button class="${e.type === 'expense' ? 'on' : ''}" data-ed="type" data-v="expense">Расход</button><button class="${e.type === 'income' ? 'on' : ''}" data-ed="type" data-v="income">Доход</button></div>
+    ${segHTML('etype', 'data-ed="type"', [['expense', 'Расход'], ['income', 'Доход']], e.type, ['var(--exp)', 'var(--inc)'], true)}
     <div class="panel">
       <div class="amt"><button class="round" data-ed="step" data-v="-1000" aria-label="Минус 10">${I.minus}</button>
         <input id="amt" class="num" inputmode="decimal" autocomplete="off" placeholder="0" value="${e.amount ? (e.amount / 100).toString().replace('.', ',') : ''}">
@@ -514,27 +637,38 @@ function editorHTML() {
       <div class="ruler" id="ruler" aria-hidden="true"></div>
       <div class="chips quick">${[50, 100, 500, 1000].map(v => `<button class="chip" data-ed="step" data-v="${v * 100}">+${v}</button>`).join('')}</div>
     </div>
-    <div class="panel"><div class="chips">${chips}</div>${newCat}</div>
+    <div class="panel" id="catPanel">${catPanelHTML()}</div>
     <div class="panel">
-      <div class="seg" style="margin:0 0 12px"><button class="${e.scope === 'personal' ? 'on' : ''}" data-ed="scope" data-v="personal">Личное</button><button class="${e.scope === 'shared' ? 'on' : ''}" data-ed="scope" data-v="shared">Общее</button></div>
+      ${segHTML('escope', 'data-ed="scope"', [['personal', 'Личное'], ['shared', 'Общее']], e.scope, null, true).replace('class="seg"', 'class="seg" style="margin:0 0 12px"')}
       <div class="chips">${ACCOUNTS.map(a => `<button class="chip ${e.account === a ? 'on' : ''}" data-ed="acc" data-v="${a}">${a}</button>`).join('')}</div>
     </div>
     <div class="panel">
       <div class="field"><label for="edDate">Дата</label><input id="edDate" type="date" value="${e.date}" max="${today()}"></div>
       <div class="field"><label for="edNote">Заметка</label><input id="edNote" value="${esc(e.note)}" placeholder="Необязательно" enterkeyhint="done"></div>
-      ${e.scope === 'personal' ? `<div class="field"><label>Скрыть от ${esc(partner().name)}</label><button class="toggle ${e.hidden ? 'on' : ''}" data-ed="hidden" role="switch" aria-checked="${e.hidden}"></button></div>` : ''}
+      <div class="collapse ${e.scope === 'personal' ? '' : 'closed'}" id="hidWrap"><div>
+        <div class="field" style="margin-top:8px"><label>Скрыть от ${esc(partner().name)}</label><button class="toggle ${e.hidden ? 'on' : ''}" id="hidT" data-ed="hidden" role="switch" aria-checked="${e.hidden}"></button></div>
+      </div></div>
     </div>
     <div id="edErr" class="err"></div>
     <button class="primary" data-ed="save">${ed.prev ? 'Сохранить изменения' : 'Сохранить'}</button>
     ${ed.prev ? '<button class="danger" data-ed="delete">Удалить запись</button>' : ''}`;
 }
 
-function rerenderEditor() {
-  const y = $('#sheet').scrollTop;
-  $('#sheetIn').innerHTML = editorHTML();
-  $('#sheet').scrollTop = y;
-  bindEditor();
+// Перерисовываем только блок категорий, остальное меняем на месте — так работают анимации
+function renderCats() {
+  const p = $('#catPanel');
+  p.innerHTML = catPanelHTML();
+  p.classList.remove('fade'); void p.offsetWidth; p.classList.add('fade');
+  const nc = $('#newCat');
+  if (nc) {
+    nc.focus();
+    const commit = () => { const v = nc.value.trim(); if (v) { ed.e.category = v; ed.newCat = false; renderCats(); } };
+    nc.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } });
+    nc.addEventListener('change', commit);
+  }
 }
+const markOn = (sel, val) => document.querySelectorAll(sel).forEach(x => x.classList.toggle('on', x.dataset.v === val));
+function setToggle(t, on) { if (!t) return; t.classList.toggle('on', on); t.setAttribute('aria-checked', on); }
 
 function syncRuler() { const r = $('#ruler'); if (r) r.style.backgroundPositionX = -Math.round(ed.e.amount / 100 * 6) % 60 + 'px'; }
 function setAmount(k, fromInput) {
@@ -548,41 +682,44 @@ function bindEditor() {
   const amt = $('#amt');
   amt.addEventListener('input', () => setAmount(parseMoney(amt.value), true));
   syncRuler();
-  if (!ed.prev && !e.amount && !ed.focused) { ed.focused = true; setTimeout(() => amt.focus(), 280); }
+  if (!ed.prev && !e.amount) setTimeout(() => amt.focus(), 300);
 
-  // Линейка: тянем влево — сумма растёт, 1 ₴ за 6 px
+  // Линейка: тянем влево — сумма растёт, 1 ₴ за 6 px, щелчок каждые 10 ₴
   const ruler = $('#ruler');
   let sx = 0, sa = 0, drag = false;
   ruler.addEventListener('pointerdown', ev => { drag = true; sx = ev.clientX; sa = e.amount; ruler.setPointerCapture(ev.pointerId); amt.blur(); });
-  ruler.addEventListener('pointermove', ev => { if (!drag) return; setAmount(Math.round(sa / 100 - (ev.clientX - sx) / 6) * 100); });
+  ruler.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    const before = e.amount;
+    setAmount(Math.round(sa / 100 - (ev.clientX - sx) / 6) * 100);
+    if (Math.floor(before / 1000) !== Math.floor(e.amount / 1000)) haptic('tick');
+  });
   ruler.addEventListener('pointerup', () => { drag = false; });
   ruler.addEventListener('pointercancel', () => { drag = false; });
 
   $('#edDate').addEventListener('change', ev => { e.date = ev.target.value || today(); });
   $('#edNote').addEventListener('input', ev => { e.note = ev.target.value; });
-  const nc = $('#newCat');
-  if (nc) {
-    nc.focus();
-    const commit = () => { const v = nc.value.trim(); if (v) { e.category = v; ed.newCat = false; rerenderEditor(); } };
-    nc.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } });
-    nc.addEventListener('change', commit);
-  }
 
-  $('#sheetIn').querySelectorAll('[data-ed]').forEach(b => b.addEventListener('click', () => {
+  $('#sheetIn').onclick = ev => {
+    const b = ev.target.closest('[data-ed]'); if (!b) return;
     const a = b.dataset.ed, v = b.dataset.v;
-    if (a === 'step') { setAmount(e.amount + Number(v)); return; }
-    if (a === 'type') { if (e.type !== v) { e.type = v; e.category = ''; } }
-    else if (a === 'cat') e.category = e.category === v ? '' : v;
-    else if (a === 'allcats') ed.allCats = true;
-    else if (a === 'newcat') ed.newCat = true;
-    else if (a === 'sugg') { e.category = v; ed.newCat = false; }
-    else if (a === 'scope') { e.scope = v; if (v === 'shared') e.hidden = false; }
-    else if (a === 'acc') e.account = e.account === v ? '' : v;
-    else if (a === 'hidden') e.hidden = !e.hidden;
-    else if (a === 'save') return saveEditor();
-    else if (a === 'delete') return deleteEditor();
-    rerenderEditor();
-  }));
+    if (a === 'step') setAmount(e.amount + Number(v));
+    else if (a === 'type') { if (e.type !== v) { e.type = v; e.category = ''; moveSeg(b.closest('.seg'), v); renderCats(); } }
+    else if (a === 'cat') { e.category = e.category === v ? '' : v; markOn('#catPanel [data-ed="cat"]', e.category); }
+    else if (a === 'allcats') { ed.allCats = true; renderCats(); }
+    else if (a === 'newcat') { ed.newCat = true; renderCats(); }
+    else if (a === 'sugg') { e.category = v; ed.newCat = false; renderCats(); }
+    else if (a === 'scope') {
+      e.scope = v; if (v === 'shared') e.hidden = false;
+      moveSeg(b.closest('.seg'), v);
+      $('#hidWrap').classList.toggle('closed', v !== 'personal');
+      setToggle($('#hidT'), e.hidden);
+    }
+    else if (a === 'acc') { e.account = e.account === v ? '' : v; markOn('[data-ed="acc"]', e.account); }
+    else if (a === 'hidden') { e.hidden = !e.hidden; setToggle(b, e.hidden); }
+    else if (a === 'save') saveEditor();
+    else if (a === 'delete') deleteEditor();
+  };
 }
 
 function saveEditor() {
@@ -593,6 +730,7 @@ function saveEditor() {
   ensureCategory(e.category, e.type);
   const prev = ed.prev, saved = Object.assign({}, e);
   closeSheet();
+  haptic('success');
   putEntry(saved);
   const word = e.type === 'income' ? 'Доход' : 'Расход';
   toast(prev ? 'Изменения сохранены' : word + ' сохранён', () => {
@@ -605,7 +743,7 @@ function deleteEditor() {
   putEntry(Object.assign({}, e, { deleted: true }));
   toast('Запись удалена', () => putEntry(Object.assign({}, e, { deleted: false })));
 }
-function showErr(t) { const el = $('#edErr'); if (el) el.textContent = t; }
+function showErr(t) { const el = $('#edErr'); if (el) el.textContent = t; haptic('error'); }
 
 function openDetail(e) {
   const rows = [['Сумма', e.type === 'income' ? money(e.amount, true) : money(-e.amount)], ['Категория', e.category], ['Дата', dayTitle(e.date)],
@@ -641,6 +779,7 @@ function regularHTML() {
 
 let reg = null;
 function openRegEditor(r) {
+  segPos.rscope = null;
   reg = r ? Object.assign({}, r) : { kind: 'regular', id: uid('r'), name: '', amount: 0, day: '', category: '', type: 'expense', scope: 'shared', owner: me().id, archived: false };
   const cats = topCats('expense');
   openSheet(`<div class="grab"></div><h2 class="sh-title">${r ? 'Регулярный платёж' : 'Новый регулярный платёж'}</h2>
@@ -650,12 +789,12 @@ function openRegEditor(r) {
       <div class="field"><label for="rgDay">День месяца</label><input id="rgDay" class="num" inputmode="numeric" value="${reg.day || ''}" placeholder="1–31"></div>
       <div class="field"><label for="rgCat">Категория</label><input id="rgCat" list="rgCats" value="${esc(reg.category)}" placeholder="Дом"><datalist id="rgCats">${[...new Set([...cats, ...DEFAULT_CATS.expense])].map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
     </div>
-    <div class="seg"><button class="${reg.scope === 'personal' ? 'on' : ''}" data-v="personal">Личное</button><button class="${reg.scope === 'shared' ? 'on' : ''}" data-v="shared">Общее</button></div>
+    ${segHTML('rscope', 'data-rs="1"', [['personal', 'Личное'], ['shared', 'Общее']], reg.scope)}
     <div id="rgErr" class="err"></div>
     <button class="primary" id="rgSave">Сохранить</button>
     ${r ? '<button class="danger" id="rgDel">Удалить платёж</button>' : ''}`);
-  $('#sheetIn').querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
-    reg.scope = b.dataset.v; $('#sheetIn').querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  $('#sheetIn').querySelectorAll('[data-rs]').forEach(b => b.addEventListener('click', () => {
+    reg.scope = b.dataset.v; moveSeg(b.closest('.seg'), reg.scope);
   }));
   $('#rgSave').addEventListener('click', () => {
     reg.name = $('#rgName').value.trim();
@@ -687,6 +826,8 @@ function settingsHTML() {
     <p class="mu" style="font-size:13px;margin:10px 4px 0">Нажмите на категорию, чтобы убрать её из выбора. Записи с ней останутся.</p>` : '<p class="mu" style="margin:0 4px">Категории появятся, когда вы добавите первые записи.</p>';
   const last = meta.lastSync ? new Date(meta.lastSync).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'ещё не было';
   return `<div class="sec">Главный экран</div><div class="rows">${cards}</div>
+    <div class="sec">Отклик</div><div class="rows"><div class="srow"><span class="grow">Виброотклик</span>
+      <button class="toggle ${layout.haptics === false ? '' : 'on'}" data-act="hx" role="switch" aria-checked="${layout.haptics !== false}" aria-label="Виброотклик"></button></div></div>
     <div class="sec">Категории</div><div class="panel">${catChips}</div>
     <div class="sec">Синхронизация</div><div class="rows">
       <div class="srow"><span class="grow mu">Последняя</span><span>${last}</span></div>
@@ -719,6 +860,7 @@ function bindSetup() {
 
 // ---------- sheet & toast ----------
 function openSheet(html) {
+  $('#sheetIn').onclick = null;
   $('#sheetIn').innerHTML = html;
   const s = $('#sheet'), sc = $('#scrim');
   s.classList.remove('hidden'); sc.classList.remove('hidden'); s.scrollTop = 0;
@@ -751,8 +893,8 @@ $('#toastBtn').addEventListener('click', () => {
 $('#app').addEventListener('click', ev => {
   const b = ev.target.closest('[data-act]'); if (!b) return;
   const a = b.dataset.act, v = b.dataset.v, id = b.dataset.id;
-  if (a === 'tab') { ui.tab = v; window.scrollTo(0, 0); render(); }
-  else if (a === 'view') { ui.view = v; ui.months = 1; render(); }
+  if (a === 'tab') { if (ui.tab !== v) { ui.tab = v; ui.enter = true; window.scrollTo(0, 0); render(); } }
+  else if (a === 'view') { if (ui.view !== v) { ui.view = v; ui.months = 1; ui.listFade = true; render(); } }
   else if (a === 'add') openEditor(null);
   else if (a === 'more') { ui.months++; render(); }
   else if (a === 'open') {
@@ -772,11 +914,15 @@ $('#app').addEventListener('click', ev => {
   }
   else if (a === 'card') {
     layout.hidden = layout.hidden.includes(v) ? layout.hidden.filter(x => x !== v) : [...layout.hidden, v];
-    store(LS.layout, layout); render();
+    store(LS.layout, layout); setToggle(b, !layout.hidden.includes(v));
+  }
+  else if (a === 'hx') {
+    layout.haptics = layout.haptics === false; store(LS.layout, layout); setToggle(b, layout.haptics);
+    haptic('light');
   }
   else if (a === 'arch') {
     const c = categories().find(x => x.id === id); if (!c) return;
-    putSetting(Object.assign({}, c, { archived: !c.archived })); render();
+    putSetting(Object.assign({}, c, { archived: !c.archived })); b.classList.toggle('arch', !c.archived);
   }
   else if (a === 'syncnow') sync();
   else if (a === 'logout') {
