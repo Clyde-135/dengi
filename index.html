@@ -45,6 +45,7 @@ button { border: 0; background: none; padding: 0; cursor: pointer; }
 input { background: var(--s2); border: 1px solid transparent; border-radius: 14px; padding: 12px 14px; width: 100%; outline: none; }
 input:focus { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+input:focus-visible { outline: none; }
 .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .mu { color: var(--mu); }
 .hidden { display: none !important; }
@@ -176,10 +177,18 @@ button:active:not(:disabled) { transform: scale(.95); }
 /* sheet */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 10; opacity: 0; transition: opacity .2s; }
 .scrim.open { opacity: 1; }
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; max-height: 94dvh; overflow-y: auto; background: #0c0c0c; border-radius: 30px 30px 0 0; padding: 10px 16px calc(var(--safe-b) + 16px); transform: translateY(100%); transition: transform .26s cubic-bezier(.2,.8,.2,1); }
+.sheet { position: fixed; left: 0; right: 0; bottom: var(--kb, 0px); z-index: 11; max-height: min(94dvh, calc(var(--vvh, 100dvh) - 12px)); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  background: #0c0c0c; border-radius: 30px 30px 0 0; padding: 0 16px calc(var(--safe-b) + 16px); transform: translateY(100%); transition: transform .3s var(--ease); }
+.sheet.tall { height: min(92dvh, calc(var(--vvh, 100dvh) - 12px)); }
+.sh-head { position: sticky; top: 0; z-index: 3; background: #0c0c0c; padding: 10px 0 12px; margin: 0 -16px 2px; padding-left: 16px; padding-right: 10px; touch-action: none; }
+.sh-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
+.sh-row h2 { font-size: 20px; font-weight: 600; margin: 0; }
+.sh-x { width: 40px; height: 40px; border-radius: 50%; background: var(--s2); color: var(--mu); display: grid; place-items: center; flex: none; }
+#catPanel { min-height: 116px; }
+.panel .seg { margin-bottom: 0; }
 .sheet.open { transform: none; }
 .sheet-in { max-width: 520px; margin: 0 auto; }
-.grab { width: 40px; height: 5px; border-radius: 99px; background: var(--s3); margin: 0 auto 14px; }
+.grab { width: 40px; height: 5px; border-radius: 99px; background: var(--s3); margin: 0 auto 8px; }
 .sh-title { font-size: 20px; font-weight: 600; margin: 0 0 14px; }
 @media (prefers-reduced-motion: reduce) { *, *::after { transition: none !important; animation: none !important; } }
 
@@ -526,6 +535,7 @@ const I = {
   search: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
   trash: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   sync: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>',
+  close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   up: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
   down: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -773,7 +783,7 @@ function openEditor(entry, preset) {
   }, preset || {});
   ed = { e: base, prev: entry ? Object.assign({}, entry) : null, allCats: false, newCat: false };
   segPos.etype = null; segPos.escope = null;
-  openSheet(editorHTML());
+  openSheet(editorHTML(), { title: entry ? 'Изменить запись' : 'Новая запись', tall: true });
   bindEditor();
 }
 
@@ -803,8 +813,7 @@ function catPanelHTML() {
 
 function editorHTML() {
   const e = ed.e;
-  return `<div class="grab"></div>
-    ${segHTML('etype', 'data-ed="type"', [['expense', 'Расход'], ['income', 'Доход']], e.type, ['var(--exp)', 'var(--inc)'], true)}
+  return `    ${segHTML('etype', 'data-ed="type"', [['expense', 'Расход'], ['income', 'Доход']], e.type, ['var(--exp)', 'var(--inc)'], true)}
     <div class="panel">
       <div class="amt"><button class="round" data-ed="step" data-v="-1000" aria-label="Минус 10">${I.minus}</button>
         <input id="amt" class="num" inputmode="decimal" autocomplete="off" placeholder="0" value="${e.amount ? (e.amount / 100).toString().replace('.', ',') : ''}">
@@ -814,7 +823,7 @@ function editorHTML() {
     </div>
     <div class="panel" id="catPanel">${catPanelHTML()}</div>
     <div class="panel">
-      ${segHTML('escope', 'data-ed="scope"', [['personal', 'Личное'], ['shared', 'Общее']], e.scope, null, true).replace('class="seg"', 'class="seg" style="margin:0 0 12px"')}
+      <div style="margin-bottom:12px">${segHTML('escope', 'data-ed="scope"', [['personal', 'Личное'], ['shared', 'Общее']], e.scope)}</div>
       <div class="chips">${ACCOUNTS.map(a => `<button class="chip ${e.account === a ? 'on' : ''}" data-ed="acc" data-v="${a}">${a}</button>`).join('')}</div>
     </div>
     <div class="panel">
@@ -959,10 +968,9 @@ function showErr(t) { const el = $('#edErr'); if (el) el.textContent = t; haptic
 function openDetail(e) {
   const rows = [['Сумма', e.type === 'income' ? money(e.amount, true) : money(-e.amount)], ['Категория', e.category], ['Дата', dayTitle(e.date)],
     ['Кто добавил', userName(e.owner)], ['Счёт', e.account], ['Заметка', e.note]].filter(r => r[1]);
-  openSheet(`<div class="grab"></div><h2 class="sh-title">${e.scope === 'shared' ? 'Общая запись' : 'Запись ' + esc(userName(e.owner))}</h2>
-    <div class="rows">${rows.map(r => `<div class="srow"><span class="mu grow">${r[0]}</span><span class="num">${esc(r[1])}</span></div>`).join('')}</div>
+  openSheet(`    <div class="rows">${rows.map(r => `<div class="srow"><span class="mu grow">${r[0]}</span><span class="num">${esc(r[1])}</span></div>`).join('')}</div>
     <p class="mu" style="font-size:14px;margin:14px 4px">Изменить запись может только тот, кто её добавил.</p>
-    <button class="primary" id="closeDetail">Закрыть</button>`);
+    <button class="primary" id="closeDetail">Закрыть</button>`, { title: e.scope === 'shared' ? 'Общая запись' : 'Запись: ' + userName(e.owner) });
   $('#closeDetail').addEventListener('click', closeSheet);
 }
 
@@ -993,8 +1001,7 @@ function openRegEditor(r) {
   segPos.rscope = null;
   reg = r ? Object.assign({}, r) : { kind: 'regular', id: uid('r'), name: '', amount: 0, day: '', category: '', type: 'expense', scope: 'shared', owner: me().id, archived: false };
   const cats = topCats('expense');
-  openSheet(`<div class="grab"></div><h2 class="sh-title">${r ? 'Регулярный платёж' : 'Новый регулярный платёж'}</h2>
-    <div class="panel">
+  openSheet(`    <div class="panel">
       <div class="field"><label for="rgName">Название</label><input id="rgName" value="${esc(reg.name)}" placeholder="Аренда"></div>
       <div class="field"><label for="rgAmt">Сумма, ₴</label><input id="rgAmt" class="num" inputmode="decimal" value="${reg.amount ? (reg.amount / 100).toString().replace('.', ',') : ''}"></div>
       <div class="field"><label for="rgDay">День месяца</label><input id="rgDay" class="num" inputmode="numeric" value="${reg.day || ''}" placeholder="1–31"></div>
@@ -1003,7 +1010,7 @@ function openRegEditor(r) {
     ${segHTML('rscope', 'data-rs="1"', [['personal', 'Личное'], ['shared', 'Общее']], reg.scope)}
     <div id="rgErr" class="err"></div>
     <button class="primary" id="rgSave">Сохранить</button>
-    ${r ? '<button class="danger" id="rgDel">Удалить платёж</button>' : ''}`);
+    ${r ? '<button class="danger" id="rgDel">Удалить платёж</button>' : ''}`, { title: r ? 'Регулярный платёж' : 'Новый регулярный платёж' });
   $('#sheetIn').querySelectorAll('[data-rs]').forEach(b => b.addEventListener('click', () => {
     reg.scope = b.dataset.v; moveSeg(b.closest('.seg'), reg.scope);
   }));
@@ -1073,18 +1080,82 @@ function bindSetup() {
 }
 
 // ---------- sheet & toast ----------
-function openSheet(html) {
-  $('#sheetIn').onclick = null;
-  $('#sheetIn').innerHTML = html;
-  const s = $('#sheet'), sc = $('#scrim');
+// Пока открыта шторка, страница под ней зафиксирована — иначе iPhone прокручивает её и всё прыгает
+function lockScroll() {
+  const b = document.body;
+  if ('locked' in b.dataset) return;
+  b.dataset.locked = window.scrollY;
+  Object.assign(b.style, { position: 'fixed', top: -window.scrollY + 'px', left: '0', right: '0' });
+}
+function unlockScroll() {
+  const b = document.body;
+  if (!('locked' in b.dataset)) return;
+  const y = Number(b.dataset.locked) || 0;
+  delete b.dataset.locked;
+  Object.assign(b.style, { position: '', top: '', left: '', right: '' });
+  window.scrollTo(0, y);
+}
+
+function openSheet(html, opts) {
+  opts = opts || {};
+  const s = $('#sheet'), sc = $('#scrim'), inn = $('#sheetIn');
+  inn.onclick = null;
+  inn.innerHTML = `<div class="sh-head" id="shHead"><div class="grab"></div><div class="sh-row"><h2>${esc(opts.title || '')}</h2>
+    <button class="sh-x" id="shX" aria-label="Закрыть">${I.close}</button></div></div>` + html;
+  $('#shX').addEventListener('click', closeSheet);
+  s.classList.toggle('tall', !!opts.tall);
+  s.style.transform = ''; s.style.transition = '';
+  lockScroll();
   s.classList.remove('hidden'); sc.classList.remove('hidden'); s.scrollTop = 0;
   requestAnimationFrame(() => { s.classList.add('open'); sc.classList.add('open'); });
 }
 function closeSheet() {
   const s = $('#sheet'), sc = $('#scrim');
-  s.classList.remove('open'); sc.classList.remove('open');
-  setTimeout(() => { if (!s.classList.contains('open')) { s.classList.add('hidden'); sc.classList.add('hidden'); $('#sheetIn').innerHTML = ''; } }, 260);
   if (document.activeElement) document.activeElement.blur();
+  s.style.transition = ''; s.style.transform = '';
+  s.classList.remove('open'); sc.classList.remove('open'); sc.style.opacity = '';
+  unlockScroll();
+  setTimeout(() => { if (!s.classList.contains('open')) { s.classList.add('hidden'); sc.classList.add('hidden'); $('#sheetIn').innerHTML = ''; } }, 300);
+}
+
+// Шторку можно смахнуть вниз за верхнюю часть
+(function sheetDrag() {
+  const s = $('#sheet'), sc = $('#scrim');
+  let y0 = 0, t0 = 0, dy = 0, on = false;
+  s.addEventListener('touchstart', ev => {
+    if (!ev.target.closest('#shHead') || ev.target.closest('#shX')) return;
+    on = true; y0 = ev.touches[0].clientY; t0 = performance.now(); dy = 0;
+    s.style.transition = 'none';
+  }, { passive: true });
+  s.addEventListener('touchmove', ev => {
+    if (!on) return;
+    ev.preventDefault();
+    dy = Math.max(0, ev.touches[0].clientY - y0);
+    s.style.transform = `translateY(${dy}px)`;
+    sc.style.opacity = String(Math.max(0.2, 1 - dy / 400));
+  }, { passive: false });
+  const end = () => {
+    if (!on) return;
+    on = false;
+    const v = dy / Math.max(1, performance.now() - t0);
+    if (dy > 110 || (v > 0.5 && dy > 30)) { closeSheet(); return; }
+    s.style.transition = ''; s.style.transform = ''; sc.style.opacity = '';
+  };
+  s.addEventListener('touchend', end);
+  s.addEventListener('touchcancel', end);
+})();
+
+// Клавиатура iPhone: держим шторку над ней, а не под ней
+if (window.visualViewport) {
+  const vv = window.visualViewport, s = $('#sheet');
+  const upd = () => {
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    s.style.setProperty('--kb', kb + 'px');
+    s.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+  };
+  vv.addEventListener('resize', upd);
+  vv.addEventListener('scroll', upd);
+  upd();
 }
 $('#scrim').addEventListener('click', closeSheet);
 
