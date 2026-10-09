@@ -122,7 +122,41 @@ button:active:not(:disabled) { transform: scale(.95); }
 .day { font-size: 14px; color: var(--mu); margin: 18px 4px 8px; display: flex; justify-content: space-between; }
 .rows { background: var(--s1); border-radius: 22px; overflow: hidden; }
 .row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; width: 100%; text-align: left; }
-.row + .row { border-top: 1px solid var(--line); }
+.srw { position: relative; overflow: hidden; }
+.srw + .srw { border-top: 1px solid var(--line); }
+.srw .row { position: relative; z-index: 1; background: var(--s1); }
+.srw-bg { position: absolute; inset: 0; background: #3a1616; color: #ffb4b4; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-right: 20px; font-size: 14px; font-weight: 500; transition: background-color .2s, color .2s; }
+.srw.armed .srw-bg { background: var(--exp); color: #fff; }
+.srw.gone { height: 0 !important; transition: height .26s var(--ease); border-top-color: transparent; }
+.srw.new .row { background: linear-gradient(90deg, rgba(213,244,62,.08), var(--s1) 60%); }
+.srw.new::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--lime); z-index: 2; }
+
+/* месяц, категории, поиск */
+.hero-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: -4px -6px 0 0; }
+.mnav { display: flex; gap: 6px; }
+.mnav .mini { background: var(--s2); }
+.stack { display: flex; gap: 3px; height: 14px; margin: 14px 0 6px; }
+.stack i { height: 100%; border-radius: 4px; min-width: 0; transition: width .5s var(--ease); }
+.legend { display: flex; flex-direction: column; margin-top: 6px; }
+.lg { display: flex; align-items: center; gap: 12px; padding: 9px 0; text-align: left; width: 100%; }
+.lg + .lg { border-top: 1px solid var(--line); }
+.lg:disabled { opacity: 1; cursor: default; }
+.lg:active:not(:disabled) { transform: none; opacity: .7; }
+.lg.on .nm { color: var(--lime); }
+.lg .pill { min-width: 52px; height: 28px; border-radius: 99px; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #000; padding: 0 8px; }
+.lg .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lhead { display: flex; align-items: center; justify-content: space-between; margin: 4px 4px 0; }
+.lhead .lt { font-size: 20px; font-weight: 600; }
+.mini.on { background: var(--tx); color: #000; }
+.sbox { margin-top: 12px; animation: fade .2s var(--ease); }
+.sbox input { border-radius: 99px; padding-left: 18px; }
+.fchips { margin-top: 12px; }
+.newchip { background: rgba(213,244,62,.1); color: var(--lime); font-size: 14px; }
+.ptr { position: fixed; left: 50%; top: calc(var(--safe-t) + 6px); z-index: 30; width: 40px; height: 40px; border-radius: 50%; background: var(--s2); color: var(--mu);
+  display: grid; place-items: center; transform: translate(-50%, -50px); opacity: 0; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+.ptr.armed { color: var(--lime); }
+.ptr.spin svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .dot { width: 38px; height: 38px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 15px; font-weight: 600; color: #000; }
 .row .mid { flex: 1; min-width: 0; }
 .row .t { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -199,6 +233,7 @@ button:active:not(:disabled) { transform: scale(.95); }
 </style>
 </head>
 <body>
+<div id="ptr" class="ptr hidden" aria-hidden="true"></div>
 <div id="app"></div>
 <div id="scrim" class="scrim hidden"></div>
 <div id="sheet" class="sheet hidden"><div class="sheet-in" id="sheetIn"></div></div>
@@ -217,7 +252,8 @@ let server = load(LS.state, { me: null, users: [], entries: [], settings: [] });
 let outbox = load(LS.out, { entries: {}, settings: {} });
 let layout = load(LS.layout, { order: ['remaining', 'today', 'week', 'month'], hidden: [] });
 let meta = load(LS.meta, { lastSync: 0, error: '' });
-const ui = { tab: 'home', view: 'mine', months: 1, syncing: false };
+const ui = { tab: 'home', view: 'mine', month: '', q: '', cat: '', searchOpen: false, syncing: false };
+if (!layout.order.includes('cats')) { const i = layout.order.indexOf('remaining'); layout.order.splice(i + 1, 0, 'cats'); }
 
 // Настройка по ссылке: index.html#u=<адрес скрипта>&k=<ключ>
 (function () {
@@ -275,7 +311,7 @@ const segPos = {}, numPrev = {}, animPrev = {};
 
 // Виброотклик: Android — Vibration API; iPhone (iOS 18+) — системный отклик переключателя
 const haptic = (() => {
-  const P = { tick: 4, light: 8, success: [10, 60, 14], error: [16, 50, 16, 50, 16] };
+  const P = { tick: 12, light: 20, success: [25, 70, 35], error: [35, 60, 35, 60, 35] };
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   let label = null;
   const iosTap = () => {
@@ -346,6 +382,12 @@ function settle(root) {
   root.querySelectorAll('.bars b[data-h]').forEach(b => { void b.offsetWidth; b.style.height = b.dataset.h + 'px'; });
   const bars = root.querySelectorAll('.bars b[data-h]');
   if (bars.length) animPrev.bars = [...bars].map(b => Number(b.dataset.h));
+  const stack = root.querySelectorAll('.stack i[data-w]');
+  if (stack.length) {
+    const map = {};
+    stack.forEach(i => { void i.offsetWidth; i.style.width = i.dataset.w + '%'; map[i.dataset.k] = Number(i.dataset.w); });
+    animPrev.stack = map;
+  }
   root.querySelectorAll('[data-num]').forEach(el => {
     const k = el.dataset.num, to = Number(el.dataset.val), fmt = el.dataset.fmt || '';
     const from = numPrev[k]; numPrev[k] = to;
@@ -400,8 +442,8 @@ function inView(e, v) {
 }
 const visibleInList = e => !(e.hidden && e.owner !== me().id);
 
-function totals(list) {
-  const t = today(), mon = monday(), m = t.slice(0, 7);
+function totals(list, month) {
+  const t = today(), mon = monday(), m = month || t.slice(0, 7);
   const r = { inc: 0, exp: 0, today: 0, todayN: 0, week: 0, days: [0, 0, 0, 0, 0, 0, 0] };
   for (const e of list) {
     if (e.date.slice(0, 7) === m) { if (e.type === 'income') r.inc += e.amount; else r.exp += e.amount; }
@@ -457,7 +499,7 @@ async function sync() {
     for (const e of sentE) if (outbox.entries[e.id] && outbox.entries[e.id].updated_at === e.updated_at) delete outbox.entries[e.id];
     for (const s of sentS) if (outbox.settings[s.id] && outbox.settings[s.id].updated_at === s.updated_at) delete outbox.settings[s.id];
     store(LS.out, outbox);
-    meta = { lastSync: Date.now(), error: '' };
+    meta.lastSync = Date.now(); meta.error = '';
   } catch (err) {
     meta.error = err.message === 'bad_key' ? 'bad_key' : (navigator.onLine ? 'server' : 'offline');
   }
@@ -479,6 +521,11 @@ const I = {
   gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
   home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20H4z"/></svg>',
   repeat: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>',
+  left: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  right: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  search: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
+  trash: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  sync: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>',
   check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   up: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
   down: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -495,6 +542,11 @@ function render() {
   app.innerHTML = headerHTML() + `<div class="view${ui.enter ? ' enter' : ''}">${body}</div>` + barHTML();
   ui.enter = false;
   settle(app);
+  const q = $('#q');
+  if (q) {
+    q.addEventListener('input', () => { ui.q = q.value; renderList(); });
+    if (ui.focusSearch) { ui.focusSearch = false; q.focus(); }
+  }
   renderSync();
 }
 
@@ -538,26 +590,53 @@ function goView(v, dir) {
   render();
 }
 
+const MONTHS_NOM = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const curMonth = () => today().slice(0, 7);
+const monthShift = (m, d) => { const [y, mo] = m.split('-').map(Number); const x = new Date(y, mo - 1 + d, 1); return x.getFullYear() + '-' + pad(x.getMonth() + 1); };
+const monthIdx = m => Number(m.slice(5, 7)) - 1;
+const yearSuffix = m => m.slice(0, 4) !== curMonth().slice(0, 4) ? ' ' + m.slice(0, 4) : '';
+const monthIn = m => 'в ' + MONTHS_IN[monthIdx(m)] + yearSuffix(m);
+const monthNom = m => MONTHS_NOM[monthIdx(m)] + yearSuffix(m);
+function minMonth() {
+  let min = curMonth();
+  for (const e of allEntries()) if (e.date && e.date.slice(0, 7) < min) min = e.date.slice(0, 7);
+  return min;
+}
+function goMonth(d) {
+  const next = monthShift(ui.month, d);
+  if (next > curMonth() || next < minMonth()) return;
+  ui.month = next; ui.slide = d > 0 ? 'r' : 'l'; ui.cat = '';
+  render();
+}
+const isNew = e => e.owner !== me().id && (e.updated_at || 0) > (ui.seenBase || Infinity);
+
 function homeHTML() {
+  if (!ui.month) ui.month = curMonth();
   const labels = { mine: 'Моё', shared: 'Общее', partner: partner().name, all: 'Всё' };
   const views = viewOrder().map(k => [k, labels[k]]);
   const seg = segHTML('view', 'data-act="view"', views, ui.view).replace('class="seg"', 'class="seg seg-views" data-noswipe');
   const list = allEntries().filter(e => inView(e, ui.view));
-  const t = totals(list);
-  const cards = layout.order.filter(c => !layout.hidden.includes(c)).map(c => cardHTML(c, t)).join('');
+  const t = totals(list, ui.month);
+  const isCur = ui.month === curMonth();
+  const cards = layout.order.filter(c => !layout.hidden.includes(c) && (isCur || (c !== 'today' && c !== 'week')))
+    .map(c => cardHTML(c, t, list)).join('');
   const anim = ui.slide ? 'in-' + ui.slide : ''; ui.slide = '';
-  return seg + `<div id="swipeArea" class="${anim}">` + (cards ? `<div class="cards">${cards}</div>` : '') + listHTML(list) + '</div>';
+  return seg + `<div id="swipeArea" class="${anim}">` + (cards ? `<div class="cards">${cards}</div>` : '') + listSectionHTML(list) + '</div>';
 }
 
-function cardHTML(kind, t) {
+function cardHTML(kind, t, list) {
+  const m = ui.month;
   if (kind === 'remaining') {
     const rem = t.inc - t.exp;
     const ratio = t.inc > 0 ? t.exp / t.inc : (t.exp > 0 ? 1 : 0);
     const on = Math.min(60, Math.round(ratio * 60));
     const was = animPrev.dots == null ? on : animPrev.dots;
     const dots = Array.from({ length: 60 }, (_, i) => `<i class="${i < was ? 'on' : ''}"></i>`).join('');
-    const note = t.inc > 0 ? `Потрачено ${Math.round(ratio * 100)}% дохода` : (t.exp > 0 ? 'Доходов в этом месяце пока нет' : 'Записей в этом месяце пока нет');
-    return `<div class="card full hero"><div class="lbl">Остаток в ${MONTHS_IN[new Date().getMonth()]}</div>
+    const note = t.inc > 0 ? `Потрачено ${Math.round(ratio * 100)}% дохода` : (t.exp > 0 ? 'Доходов в этом месяце нет' : 'Записей в этом месяце нет');
+    const canPrev = monthShift(m, -1) >= minMonth(), canNext = m < curMonth();
+    return `<div class="card full hero"><div class="hero-top"><div class="lbl">Остаток ${monthIn(m)}</div>
+        <div class="mnav"><button class="mini" data-act="month" data-d="-1" ${canPrev ? '' : 'disabled'} aria-label="Прошлый месяц">${I.left}</button>
+        <button class="mini" data-act="month" data-d="1" ${canNext ? '' : 'disabled'} aria-label="Следующий месяц">${I.right}</button></div></div>
       <div class="big num" data-num="rem" data-val="${rem}">${money(rem)}</div><div class="dots ${rem < 0 ? 'over' : ''}" data-on="${on}">${dots}</div><div class="sub">${note}</div></div>`;
   }
   if (kind === 'today') {
@@ -572,47 +651,116 @@ function cardHTML(kind, t) {
     return `<div class="card"><div class="lbl">С понедельника</div><div class="big num" data-num="week" data-val="${t.week}">${money(t.week)}</div><div class="bars">${bars}</div></div>`;
   }
   if (kind === 'month') {
-    return `<div class="card full"><div class="lbl">За месяц</div>
+    return `<div class="card full"><div class="lbl">За ${monthNom(m)}</div>
       <div class="split"><span class="mu">Доходы</span><span class="v num pos" data-num="inc" data-fmt="plus" data-val="${t.inc}">${money(t.inc, true)}</span></div>
       <div class="split"><span class="mu">Расходы</span><span class="v num" data-num="exp" data-fmt="neg" data-val="${t.exp}">${money(-t.exp)}</span></div></div>`;
+  }
+  if (kind === 'cats') {
+    const by = {};
+    let total = 0;
+    for (const e of list) {
+      if (e.type !== 'expense' || e.date.slice(0, 7) !== m) continue;
+      const k = e.hidden && e.owner !== me().id ? '\u0000hidden' : (e.category || 'Без категории');
+      by[k] = (by[k] || 0) + e.amount; total += e.amount;
+    }
+    if (!total) return `<div class="card full"><div class="lbl">Расходы по категориям</div><div class="sub" style="margin-top:10px">Расходов ${monthIn(m)} нет</div></div>`;
+    let rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
+    if (rows.length > 6) { const rest = rows.slice(5).reduce((s, r) => s + r[1], 0); rows = rows.slice(0, 5).concat([['\u0000other', rest]]); }
+    const meta_ = k => k === '\u0000hidden' ? { name: 'Скрытые', color: 'var(--dim)', tap: false }
+      : k === '\u0000other' ? { name: 'Другое', color: '#5a5a55', tap: false } : { name: k, color: catColor(k, 'expense'), tap: true };
+    const prevW = animPrev.stack || {};
+    const segs = rows.map(([k, v]) => {
+      const w = (v / total * 100).toFixed(2);
+      return `<i data-k="${esc(k)}" data-w="${w}" style="background:${meta_(k).color};width:${prevW[k] == null ? 0 : prevW[k]}%"></i>`;
+    }).join('');
+    const legend = rows.map(([k, v]) => {
+      const mm = meta_(k), pct = Math.round(v / total * 100);
+      return `<button class="lg ${ui.cat === k ? 'on' : ''}" ${mm.tap ? `data-act="cat" data-v="${esc(k)}"` : 'disabled'}>
+        <span class="pill num" style="background:${mm.color}">${pct < 1 ? '<1' : pct}%</span><span class="nm">${esc(mm.name)}</span><span class="num">${money(-v)}</span></button>`;
+    }).join('');
+    return `<div class="card full"><div class="lbl">Расходы по категориям</div><div class="stack">${segs}</div><div class="legend">${legend}</div></div>`;
   }
   return '';
 }
 function plural(n, f) { const a = n % 10, b = n % 100; return f[a === 1 && b !== 11 ? 0 : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? 1 : 2]; }
 
+function listSectionHTML(list) {
+  const newCount = allEntries().filter(e => isNew(e) && visibleInList(e)).length;
+  const head = `<div class="lhead" id="listHead"><span class="lt">Записи</span>
+    <button class="mini ${ui.searchOpen ? 'on' : ''}" data-act="search" aria-label="Поиск">${I.search}</button></div>`;
+  const search = ui.searchOpen ? `<div class="sbox"><input id="q" type="search" placeholder="Сумма, категория или заметка" value="${esc(ui.q)}" autocomplete="off" enterkeyhint="search"></div>` : '';
+  const chips = [
+    ui.cat ? `<button class="chip on" data-act="clearcat"><span class="c" style="background:${catColor(ui.cat, 'expense')}"></span>${esc(ui.cat)} ✕</button>` : '',
+    newCount ? `<span class="chip newchip"><span class="c" style="background:var(--lime)"></span>${esc(partner().name)} — ${newCount} ${plural(newCount, ['новая запись', 'новые записи', 'новых записей'])}</span>` : '',
+  ].join('');
+  return head + search + (chips ? `<div class="chips fchips">${chips}</div>` : '') + `<div id="listBox">${listHTML(list)}</div>`;
+}
+
+function filteredList(list) {
+  let out = list.filter(visibleInList);
+  const q = ui.q.trim().toLowerCase();
+  if (q) {
+    const qn = q.replace(',', '.').replace(/\s/g, '');
+    out = out.filter(e => (e.category || '').toLowerCase().includes(q) || (e.note || '').toLowerCase().includes(q) ||
+      (e.account || '').toLowerCase().includes(q) || String(e.amount / 100).includes(qn));
+  } else {
+    out = out.filter(e => e.date.slice(0, 7) === ui.month);
+  }
+  if (ui.cat) out = out.filter(e => e.category === ui.cat);
+  return out.sort((a, b) => b.date.localeCompare(a.date) || b.updated_at - a.updated_at);
+}
+
 function listHTML(list) {
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (ui.months - 1));
-  const from = ds(d);
-  const all = list.filter(visibleInList).sort((a, b) => b.date.localeCompare(a.date) || b.updated_at - a.updated_at);
-  const shown = all.filter(e => e.date >= from);
-  if (!all.length) return `<div class="empty">Здесь пока пусто.<br>Нажмите «+», чтобы добавить первую запись.</div>`;
+  const items = filteredList(list);
+  if (!items.length) {
+    const msg = ui.q.trim() ? 'Ничего не найдено' : ui.cat ? `Нет записей в категории «${esc(ui.cat)}» ${monthIn(ui.month)}` :
+      (list.length ? `Записей ${monthIn(ui.month)} нет` : 'Здесь пока пусто.<br>Нажмите «+», чтобы добавить первую запись.');
+    return `<div class="empty">${msg}</div>`;
+  }
   const groups = [];
-  for (const e of shown) {
+  for (const e of items) {
     const g = groups[groups.length - 1];
     if (g && g.date === e.date) g.items.push(e); else groups.push({ date: e.date, items: [e] });
   }
   const showOwner = ui.view === 'shared' || ui.view === 'all';
-  let html = groups.map(g => {
+  const found = ui.q.trim() ? `<div class="day"><span>Найдено: ${items.length}</span><span class="num">${money(-items.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0))}</span></div>` : '';
+  return found + groups.map(g => {
     const spent = g.items.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
     return `<div class="day"><span>${dayTitle(g.date)}</span><span class="num">${spent ? money(-spent) : ''}</span></div>
       <div class="rows">${g.items.map(e => rowHTML(e, showOwner)).join('')}</div>`;
   }).join('');
-  if (!shown.length) html = `<div class="empty">В этом месяце записей нет.</div>`;
-  if (all.length > shown.length) html += `<button class="more" data-act="more">Показать прошлый месяц</button>`;
-  return html;
+}
+
+function renderList() {
+  const box = $('#listBox'); if (!box) return;
+  box.innerHTML = listHTML(allEntries().filter(e => inView(e, ui.view)));
 }
 
 function rowHTML(e, showOwner) {
   const col = catColor(e.category, e.type);
   const letter = esc((e.category || '?').slice(0, 1).toUpperCase());
-  const tags = (showOwner && e.owner !== me().id ? `<span class="tag">${esc(userName(e.owner))}</span>` : '') +
+  const own = e.owner === me().id;
+  const tags = (showOwner && !own ? `<span class="tag">${esc(userName(e.owner))}</span>` : '') +
                (e.hidden ? '<span class="tag">скрыто</span>' : '') +
                (e.scope === 'shared' && ui.view === 'all' ? '<span class="tag">общее</span>' : '');
   const sub = [e.note, e.account].filter(Boolean).map(esc).join(', ');
-  return `<button class="row" data-act="open" data-id="${esc(e.id)}">
+  return `<div class="srw${own ? ' own' : ''}${isNew(e) ? ' new' : ''}" data-id="${esc(e.id)}">${own ? `<div class="srw-bg">${I.trash}Удалить</div>` : ''}
+    <button class="row" data-act="open" data-id="${esc(e.id)}">
     <span class="dot" style="background:${col}">${letter}</span>
     <span class="mid"><div class="t">${esc(e.category || 'Без категории')}${tags}</div>${sub ? `<div class="n">${sub}</div>` : ''}</span>
-    <span class="a num ${e.type === 'income' ? 'pos' : ''}">${e.type === 'income' ? money(e.amount, true) : money(-e.amount)}</span></button>`;
+    <span class="a num ${e.type === 'income' ? 'pos' : ''}">${e.type === 'income' ? money(e.amount, true) : money(-e.amount)}</span></button></div>`;
+}
+
+function deleteRow(wrap) {
+  const e = allEntries().find(x => x.id === wrap.dataset.id); if (!e) return;
+  haptic('success');
+  wrap.style.height = wrap.offsetHeight + 'px';
+  void wrap.offsetWidth;
+  wrap.classList.add('gone');
+  setTimeout(() => {
+    putEntry(Object.assign({}, e, { deleted: true }));
+    toast('Запись удалена', () => putEntry(Object.assign({}, e, { deleted: false })));
+  }, 260);
 }
 
 // ---------- entry editor ----------
@@ -673,7 +821,7 @@ function editorHTML() {
       <div class="field"><label for="edDate">Дата</label><input id="edDate" type="date" value="${e.date}" max="${today()}"></div>
       <div class="field"><label for="edNote">Заметка</label><input id="edNote" value="${esc(e.note)}" placeholder="Необязательно" enterkeyhint="done"></div>
       <div class="collapse ${e.scope === 'personal' ? '' : 'closed'}" id="hidWrap"><div>
-        <div class="field" style="margin-top:8px"><label>Скрыть от ${esc(partner().name)}</label><button class="toggle ${e.hidden ? 'on' : ''}" id="hidT" data-ed="hidden" role="switch" aria-checked="${e.hidden}"></button></div>
+        <div class="field" style="margin-top:8px"><label>Скрытая запись<br><span style="font-size:12px;color:var(--dim)">${esc(partner().name)} не увидит её в списке</span></label><button class="toggle ${e.hidden ? 'on' : ''}" id="hidT" data-ed="hidden" role="switch" aria-checked="${e.hidden}"></button></div>
       </div></div>
     </div>
     <div id="edErr" class="err"></div>
@@ -877,7 +1025,7 @@ function openRegEditor(r) {
 }
 
 // ---------- settings ----------
-const CARD_NAMES = { remaining: 'Остаток за месяц', today: 'Сегодня', week: 'С понедельника', month: 'Доходы и расходы за месяц' };
+const CARD_NAMES = { remaining: 'Остаток за месяц', cats: 'Расходы по категориям', today: 'Сегодня', week: 'С понедельника', month: 'Доходы и расходы за месяц' };
 function settingsHTML() {
   const n = pendingCount();
   const cards = layout.order.map((c, i) => `<div class="srow"><span class="grow">${CARD_NAMES[c]}</span>
@@ -891,7 +1039,9 @@ function settingsHTML() {
   return `<div class="sec">Главный экран</div><div class="rows">${cards}</div>
     <p class="mu" style="font-size:13px;margin:10px 4px 0">Вкладки «Моё», «Общее» и другие можно переставить: удерживайте вкладку и перетащите её. Между вкладками можно листать свайпом.</p>
     <div class="sec">Отклик</div><div class="rows"><div class="srow"><span class="grow">Виброотклик</span>
-      <button class="toggle ${layout.haptics === false ? '' : 'on'}" data-act="hx" role="switch" aria-checked="${layout.haptics !== false}" aria-label="Виброотклик"></button></div></div>
+      <button class="toggle ${layout.haptics === false ? '' : 'on'}" data-act="hx" role="switch" aria-checked="${layout.haptics !== false}" aria-label="Виброотклик"></button></div>
+      <div class="srow"><span class="grow mu" id="hxNote">${'vibrate' in navigator ? 'Если вибрации нет, нажмите «Проверить»' : (/iP(hone|ad|od)/.test(navigator.userAgent) ? 'На iPhone отклик работает с iOS 18' : 'Этот браузер не поддерживает вибрацию')}</span>
+      <button class="chip" data-act="hxtest">Проверить</button></div></div>
     <div class="sec">Категории</div><div class="panel">${catChips}</div>
     <div class="sec">Синхронизация</div><div class="rows">
       <div class="srow"><span class="grow mu">Последняя</span><span>${last}</span></div>
@@ -960,7 +1110,13 @@ $('#app').addEventListener('click', ev => {
   if (a === 'tab') { if (ui.tab !== v) { ui.tab = v; ui.enter = true; window.scrollTo(0, 0); render(); } }
   else if (a === 'view') goView(v);
   else if (a === 'add') openEditor(null);
-  else if (a === 'more') { ui.months++; render(); }
+  else if (a === 'month') goMonth(Number(b.dataset.d));
+  else if (a === 'cat') {
+    ui.cat = ui.cat === v ? '' : v; render();
+    if (ui.cat) { const h = $('#listHead'); if (h) window.scrollTo({ top: h.getBoundingClientRect().top + window.scrollY - 70, behavior: reduced ? 'auto' : 'smooth' }); }
+  }
+  else if (a === 'clearcat') { ui.cat = ''; render(); }
+  else if (a === 'search') { ui.searchOpen = !ui.searchOpen; if (!ui.searchOpen) ui.q = ''; ui.focusSearch = ui.searchOpen; render(); }
   else if (a === 'open') {
     const e = allEntries().find(x => x.id === id); if (!e) return;
     if (e.owner === me().id) openEditor(e); else openDetail(e);
@@ -979,6 +1135,14 @@ $('#app').addEventListener('click', ev => {
   else if (a === 'card') {
     layout.hidden = layout.hidden.includes(v) ? layout.hidden.filter(x => x !== v) : [...layout.hidden, v];
     store(LS.layout, layout); setToggle(b, !layout.hidden.includes(v));
+  }
+  else if (a === 'hxtest') {
+    const note = $('#hxNote');
+    if (!('vibrate' in navigator)) { haptic('success'); return; }
+    const ok = navigator.vibrate(300);
+    note.textContent = ok
+      ? 'Сигнал отправлен на 0,3 с. Не почувствовали — проверьте режим «Без звука», энергосбережение и «Вибрация при касании» в настройках телефона.'
+      : 'Браузер заблокировал вибрацию. Откройте приложение в Chrome.';
   }
   else if (a === 'hx') {
     layout.haptics = layout.haptics === false; store(LS.layout, layout); setToggle(b, layout.haptics);
@@ -1001,50 +1165,114 @@ $('#app').addEventListener('click', ev => {
 // ---------- gestures: swipe between views, long-press to reorder ----------
 const reorder = { active: false };
 
-(function swipeViews() {
+(function touchGestures() {
   const app = $('#app');
-  let sx = 0, sy = 0, st = 0, mode = null, area = null, seg = null, idx = 0, w = 1;
-  const reset = () => {
+  const ptr = $('#ptr');
+  let sx = 0, sy = 0, st = 0, mode = null, area = null, seg = null, idx = 0, w = 1, wrap = null, row = null, inHero = false, pullD = 0;
+  const resetView = m => {
     if (area) { area.style.transition = 'transform .3s var(--ease), opacity .3s'; area.style.transform = ''; area.style.opacity = ''; }
-    if (seg) { seg.querySelector('.ind').style.transition = ''; seg.style.setProperty('--i', idx); }
+    if (seg && m === 'view') { seg.querySelector('.ind').style.transition = ''; seg.style.setProperty('--i', idx); }
   };
+  const resetRow = () => { if (row) { row.style.transition = 'transform .3s var(--ease)'; row.style.transform = ''; } };
+
   app.addEventListener('touchstart', ev => {
     mode = null;
-    if (ui.tab !== 'home' || ev.touches.length !== 1 || reorder.active || !$('#sheet').classList.contains('hidden')) return;
-    if (ev.target.closest('[data-noswipe]')) return;
-    const t = ev.touches[0]; sx = t.clientX; sy = t.clientY; st = performance.now(); mode = 'wait';
+    if (ev.touches.length !== 1 || reorder.active || ui.pulling || !$('#sheet').classList.contains('hidden')) return;
+    if (ev.target.closest('[data-noswipe]') || ev.target.closest('input')) return;
+    const t = ev.touches[0]; sx = t.clientX; sy = t.clientY; st = performance.now();
+    wrap = ui.tab === 'home' ? ev.target.closest('.srw.own') : null;
+    inHero = ui.tab === 'home' && !!ev.target.closest('.hero');
+    mode = 'wait';
   }, { passive: true });
+
   app.addEventListener('touchmove', ev => {
     if (!mode) return;
     const t = ev.touches[0], dx = t.clientX - sx, dy = t.clientY - sy;
     if (mode === 'wait') {
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-      if (Math.abs(dx) <= Math.abs(dy) * 1.3) { mode = null; return; } // вертикальная прокрутка
-      mode = 'h'; area = $('#swipeArea'); seg = $('.seg-views');
-      idx = viewOrder().indexOf(ui.view); w = app.clientWidth || 1;
-      if (area) area.style.transition = 'none';
-      if (seg) seg.querySelector('.ind').style.transition = 'none';
+      if (Math.abs(dx) > Math.abs(dy) * 1.3 && ui.tab === 'home') {
+        w = app.clientWidth || 1;
+        if (wrap && dx < 0) { mode = 'row'; row = wrap.querySelector('.row'); row.style.transition = 'none'; }
+        else {
+          mode = inHero ? 'month' : 'view';
+          area = $('#swipeArea'); seg = $('.seg-views'); idx = viewOrder().indexOf(ui.view);
+          if (area) area.style.transition = 'none';
+          if (seg && mode === 'view') seg.querySelector('.ind').style.transition = 'none';
+        }
+      } else if (dy > 0 && Math.abs(dy) > Math.abs(dx) && window.scrollY <= 0) {
+        mode = 'pull'; ptr.classList.remove('hidden'); ptr.style.transition = 'none';
+      } else { mode = null; return; }
     }
     ev.preventDefault();
-    const last = viewOrder().length - 1;
-    const d = (idx === 0 && dx > 0) || (idx === last && dx < 0) ? dx * 0.25 : dx; // «резиновый» край
-    if (area) { area.style.transform = `translateX(${d * 0.5}px)`; area.style.opacity = 1 - Math.min(0.45, Math.abs(d) / w * 0.7); }
-    if (seg) seg.style.setProperty('--i', Math.max(0, Math.min(last, idx - d / w)));
+    if (mode === 'row') {
+      const d = Math.min(0, dx);
+      row.style.transform = `translateX(${d}px)`;
+      wrap.classList.toggle('armed', -d > w * 0.35);
+    } else if (mode === 'view' || mode === 'month') {
+      let atStart, atEnd;
+      if (mode === 'view') { const last = viewOrder().length - 1; atStart = idx === 0; atEnd = idx === last; }
+      else { atStart = monthShift(ui.month, -1) < minMonth(); atEnd = ui.month >= curMonth(); }
+      const d = (atStart && dx > 0) || (atEnd && dx < 0) ? dx * 0.25 : dx;
+      if (area) { area.style.transform = `translateX(${d * 0.5}px)`; area.style.opacity = 1 - Math.min(0.45, Math.abs(d) / w * 0.7); }
+      if (seg && mode === 'view') seg.style.setProperty('--i', Math.max(0, Math.min(viewOrder().length - 1, idx - d / w)));
+    } else if (mode === 'pull') {
+      pullD = Math.min(120, dy * 0.5);
+      const armed = pullD > 64;
+      ptr.style.transform = `translate(-50%, ${pullD - 50}px) rotate(${pullD * 3}deg)`;
+      ptr.style.opacity = Math.min(1, pullD / 50);
+      if (armed && !ptr.classList.contains('armed')) haptic('tick');
+      ptr.classList.toggle('armed', armed);
+    }
   }, { passive: false });
+
   app.addEventListener('touchend', ev => {
-    if (mode !== 'h') { mode = null; return; }
-    mode = null;
+    const m = mode; mode = null;
+    if (!m || m === 'wait') return;
     const dx = ev.changedTouches[0].clientX - sx, v = dx / Math.max(1, performance.now() - st);
-    const o = viewOrder();
-    let next = idx;
-    if ((dx < -60 || v < -0.45) && idx < o.length - 1) next = idx + 1;
-    else if ((dx > 60 || v > 0.45) && idx > 0) next = idx - 1;
-    if (next === idx) return reset();
+    if (m === 'row') {
+      wrap.classList.remove('armed');
+      if (-dx > w * 0.35 || v < -0.6) {
+        row.style.transition = 'transform .22s var(--ease)'; row.style.transform = `translateX(${-w}px)`;
+        ui.suppressClick = true; setTimeout(() => { ui.suppressClick = false; }, 300);
+        deleteRow(wrap);
+      } else resetRow();
+      return;
+    }
+    if (m === 'pull') {
+      ptr.style.transition = 'transform .3s var(--ease), opacity .3s';
+      if (pullD > 64) {
+        ui.pulling = true; ptr.classList.add('spin');
+        ptr.style.transform = 'translate(-50%, 14px)';
+        haptic('success');
+        const t0 = Date.now();
+        sync().finally(() => setTimeout(() => {
+          ui.pulling = false; ptr.classList.remove('spin', 'armed');
+          ptr.style.transform = 'translate(-50%, -50px)'; ptr.style.opacity = 0;
+          if (meta.error && meta.error !== 'bad_key') toast(meta.error === 'offline' ? 'Нет интернета — записи отправятся позже' : 'Таблица не ответила');
+        }, Math.max(0, 500 - (Date.now() - t0))));
+      } else { ptr.style.transform = 'translate(-50%, -50px)'; ptr.style.opacity = 0; ptr.classList.remove('armed'); }
+      pullD = 0;
+      return;
+    }
+    let dir = 0;
+    if (dx < -60 || v < -0.45) dir = 1; else if (dx > 60 || v > 0.45) dir = -1;
+    if (m === 'month') {
+      const next = monthShift(ui.month, dir);
+      if (!dir || next > curMonth() || next < minMonth()) { resetView('month'); return; }
+      haptic('light'); goMonth(dir); return;
+    }
+    const o = viewOrder(), next = idx + dir;
+    if (!dir || next < 0 || next >= o.length) { resetView('view'); return; }
     const frac = seg ? parseFloat(seg.style.getPropertyValue('--i')) : NaN;
     segPos.view = isNaN(frac) ? idx : frac;
-    goView(o[next], next > idx ? 'r' : 'l');
+    goView(o[next], dir > 0 ? 'r' : 'l');
   });
-  app.addEventListener('touchcancel', () => { if (mode === 'h') reset(); mode = null; });
+  app.addEventListener('touchcancel', () => {
+    if (mode === 'row') { wrap.classList.remove('armed'); resetRow(); }
+    else if (mode === 'view' || mode === 'month') resetView(mode);
+    else if (mode === 'pull') { ptr.style.transform = 'translate(-50%, -50px)'; ptr.style.opacity = 0; }
+    mode = null;
+  });
 })();
 
 (function reorderViews() {
@@ -1099,6 +1327,16 @@ const reorder = { active: false };
 
 // ---------- start ----------
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+$('#ptr').innerHTML = I.sync;
+
+// «Новое от партнёра»: подсвечиваем его записи, появившиеся после прошлого открытия приложения
+function markSeen() { ui.seenBase = meta.seenAt || Date.now(); meta.seenAt = Date.now(); store(LS.meta, meta); }
+markSeen();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) ui.hiddenAt = Date.now();
+  else if (ui.hiddenAt && Date.now() - ui.hiddenAt > 60000) { markSeen(); render(); }
+});
+
 render();
 if (cfg && server.me) sync();
 </script>
